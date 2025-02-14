@@ -1,0 +1,21 @@
+[project]
+name = "toraheval"
+version = "0.1.0"
+description = "Open source eval for Torah questions"
+readme = "README.md"
+authors = [
+    { name = "Matanya Loewenthal", email = "matanya@sofer.ai" },
+    { name = "Zach Fish", email = "zach@sofer.ai" },
+]
+requires-python = ">=3.12"
+dependencies = [
+    "groq>=0.18.0",
+    "inspect-ai>=0.3.64",
+]
+
+[project.scripts]
+toraheval = "toraheval:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
