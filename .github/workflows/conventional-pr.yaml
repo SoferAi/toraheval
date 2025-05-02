@@ -14,7 +14,7 @@ jobs:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
       - name: Generate a token
         id: generate-token
-        uses: actions/create-github-app-token@30bf6253fa41bdc8d1501d202ad15287582246b4 # v2
+        uses: actions/create-github-app-token@db3cdf40984fe6fd25ae19ac2bf2f4886ae8d959 # v2
         with:
           app-id: ${{ secrets.SOFERAI_BOT_CLIENT_ID }}
           private-key: ${{ secrets.SOFERAI_BOT_PRIVATE_SIGNING_KEY }}
