@@ -1,0 +1,33 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "toraheval-sofer-ai"
+version = "0.1.0"
+requires-python = ">=3.10"
+description = "Sofer.AI implementation for TorahEval evaluation suite"
+readme = "README.md"
+license = {text = "MIT"}
+authors = [
+    { name = "Matanya Loewenthal", email = "matanya@sofer.ai" },
+    { name = "Zach Fish", email = "zach@sofer.ai" },
+]
+dependencies = [
+    "toraheval",  # Import the evaluation contracts
+    "typer[all]>=0.9.0",
+    "rich>=13.0.0",
+]
+
+[project.scripts]
+toraheval-sofer-ai = "toraheval_sofer_ai.cli:main"
+
+[tool.uv.sources]
+toraheval = { path = "../../../evals/toraheval" }
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
+include = ["toraheval_sofer_ai*"]

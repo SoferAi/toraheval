@@ -1,21 +1,79 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
 [project]
-name = "toraheval"
+name = "torahbench"
 version = "0.1.0"
-description = "Open source eval for Torah questions"
+requires-python = ">=3.10"
+description = "Comprehensive evaluation framework for Torah and Jewish learning models"
 readme = "README.md"
+license = {text = "MIT"}
 authors = [
     { name = "Matanya Loewenthal", email = "matanya@sofer.ai" },
     { name = "Zach Fish", email = "zach@sofer.ai" },
 ]
-requires-python = ">=3.12"
 dependencies = [
-    "groq>=0.18.0",
-    "inspect-ai>=0.3.64",
+    "typer==0.15.3",
+    "rich>=13.0.0",
+    "pydantic>=2.0.0",
 ]
 
-[project.scripts]
-toraheval = "toraheval:main"
+[project.optional-dependencies]
+toraheval = ["toraheval"]
+implementations = ["toraheval-sofer-ai"]
 
-[build-system]
-requires = ["hatchling"]
-build-backend = "hatchling.build"
+[tool.uv.sources]
+toraheval = { path = "packages/evals/toraheval" }
+toraheval-sofer-ai = { path = "packages/implementations/sofer-ai/toraheval" }
+
+[project.urls]
+Homepage = "https://github.com/SoferAi/toraheval"
+Repository = "https://github.com/SoferAi/toraheval"
+
+[project.scripts]
+torahbench = "torahbench._cli:main"
+
+# TorahBench will discover and import evaluation packages dynamically
+# Each package is independent with its own dependencies
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
+include = ["torahbench*"]
+
+[tool.pytest.ini_options]
+minversion = "8.0"
+addopts = "-ra -q --strict-markers"
+testpaths = ["tests"]
+pythonpath = ["src", "."]
+markers = [
+    "integration: marks tests that require external services (deselect with '-m \"not integration\"')",
+]
+
+[tool.coverage.run]
+source = ["src/torahbench"]
+omit = ["tests/*", "**/__init__.py", "**/conftest.py"]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "raise AssertionError",
+    "raise NotImplementedError",
+    "if __name__ == .__main__.:",
+    "if TYPE_CHECKING:",
+]
+precision = 2
+show_missing = true
+
+[dependency-groups]
+dev = [
+    "mypy>=1.15.0",
+    "pre-commit>=4.2.0",
+    "pytest>=8.3.5",
+    "pytest-cov>=4.1.0",
+    "ruff>=0.11.9",
+]

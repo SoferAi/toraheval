@@ -1,0 +1,24 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "toraheval-dicta"
+version = "0.1.0"
+requires-python = ">=3.10"
+description = "Dicta implementation for TorahEval evaluation suite"
+readme = "README.md"
+license = {text = "MIT"}
+dependencies = [
+    "toraheval",  # Import the evaluation contracts
+]
+
+[tool.uv.sources]
+toraheval = { path = "../../../evals/toraheval" }
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
+include = ["toraeval_dicta*"]
