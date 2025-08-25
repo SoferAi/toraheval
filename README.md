@@ -28,6 +28,7 @@ uv run langsmith_evaluation.py list
 uv run langsmith_evaluation.py anthropic_sonnet
 uv run langsmith_evaluation.py anthropic_haiku
 uv run langsmith_evaluation.py simple_template
+uv run langsmith_evaluation.py ituria_agent
 ```
 
 ### Run evaluation with specific evaluators:
@@ -46,11 +47,12 @@ uv run langsmith_evaluation.py
 
 ## Target Functions
 
-The evaluation system supports multiple target functions defined in `targets.py`:
+The evaluation system supports multiple target functions defined in the `targets/` directory:
 
 - **anthropic_sonnet**: Uses Claude 3.5 Sonnet (high quality)
-- **anthropic_haiku**: Uses Claude 3 Haiku (faster, cheaper)
+- **anthropic_haiku**: Uses Claude 3 Haiku (faster, cheaper)  
 - **simple_template**: Template-based baseline responses
+- **ituria_agent**: Comprehensive search using MCP Jewish Library server
 
 ## Evaluators
 
@@ -69,18 +71,26 @@ The system includes several evaluators to comprehensively assess Torah Q&A respo
 
 To add a new target function:
 
-1. Open `targets.py`
-2. Create a new function that takes `inputs: dict` and returns `outputs: dict`
-3. Add it to the `TARGET_FUNCTIONS` registry
+1. Create a new Python file in the `targets/` directory (e.g., `my_target.py`)
+2. Implement a function that takes `inputs: dict` and returns `outputs: dict`
+3. Import it in `targets/__init__.py`
+4. Add it to the `TARGET_FUNCTIONS` registry
 
-Example:
+Example in `targets/my_target.py`:
 ```python
 def my_new_target(inputs: dict) -> dict:
     # Your implementation here
     return {"answer": "Some response"}
+```
 
-# Add to registry
-TARGET_FUNCTIONS["my_new_target"] = my_new_target
+Then in `targets/__init__.py`:
+```python
+from .my_target import my_new_target
+
+TARGET_FUNCTIONS = {
+    # ... existing targets
+    "my_target": my_new_target,
+}
 ```
 
 ## Adding New Evaluators
