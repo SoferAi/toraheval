@@ -6,7 +6,8 @@ import json
 import asyncio
 from typing import Dict, List, Any
 from dotenv import load_dotenv
-import httpx
+from mcp import ClientSession, StdioServerParameters
+from mcp.client.stdio import stdio_client
 from langchain_anthropic import ChatAnthropic
 from langchain.schema import HumanMessage, SystemMessage
 
@@ -15,16 +16,33 @@ load_dotenv()
 
 
 class JewishLibraryMCPClient:
-    """Client for connecting to the Jewish Library MCP server."""
+    """Client for connecting to the Jewish Library MCP server using proper MCP SDK."""
     
-    def __init__(self, server_url: str = "https://sse.ituria.site/sse"):
-        self.server_url = server_url
+    def __init__(self, server_command: str = "ituria-mcp-server"):
+        self.server_command = server_command
         self.session = None
+        self.read = None
+        self.write = None
         
     async def connect(self):
-        """Connect to the MCP server via SSE."""
+        """Connect to the MCP server using stdio transport."""
         try:
-            self.session = httpx.AsyncClient(timeout=30.0)
+            # Create server parameters for stdio connection
+            server_params = StdioServerParameters(
+                command=self.server_command,  # The MCP server executable
+                args=[],  # Optional command line arguments
+                env=None,  # Optional environment variables
+            )
+            
+            # Connect using stdio client
+            self.read, self.write = await stdio_client(server_params).__aenter__()
+            
+            # Create session
+            self.session = await ClientSession(self.read, self.write).__aenter__()
+            
+            # Initialize the connection
+            await self.session.initialize()
+            
             return True
         except Exception as e:
             print(f"Failed to connect to MCP server: {e}")
@@ -32,114 +50,91 @@ class JewishLibraryMCPClient:
     
     async def semantic_search(self, query: str, reference: str = "", topics: str = "", limit: int = 30) -> Dict[str, Any]:
         """Perform semantic search using the MCP server."""
-        payload = {
-            "method": "tools/call",
-            "params": {
-                "name": "semantic_search",
-                "arguments": {
+        try:
+            if not self.session:
+                return {"error": "Not connected to MCP server"}
+                
+            result = await self.session.call_tool(
+                "semantic_search",
+                arguments={
                     "query": query,
                     "reference": reference,
                     "topics": topics,
                     "limit": limit
                 }
-            }
-        }
-        
-        try:
-            response = await self.session.post(
-                self.server_url,
-                json=payload,
-                headers={"Content-Type": "application/json"}
             )
-            if response.status_code == 200:
-                return response.json()
-            else:
-                return {"error": f"HTTP {response.status_code}: {response.text}"}
+            return {"result": result}
         except Exception as e:
-            return {"error": f"Request failed: {str(e)}"}
+            return {"error": f"Semantic search failed: {str(e)}"}
     
     async def keywords_search(self, text: str, reference: str = "", topics: str = "", num_results: int = 50) -> Dict[str, Any]:
         """Perform keywords search using the MCP server."""
-        payload = {
-            "method": "tools/call",
-            "params": {
-                "name": "keywords_search",
-                "arguments": {
+        try:
+            if not self.session:
+                return {"error": "Not connected to MCP server"}
+                
+            result = await self.session.call_tool(
+                "keywords_search",
+                arguments={
                     "text": text,
                     "reference": reference,
                     "topics": topics,
                     "num_results": num_results
                 }
-            }
-        }
-        
-        try:
-            response = await self.session.post(
-                self.server_url,
-                json=payload,
-                headers={"Content-Type": "application/json"}
             )
-            if response.status_code == 200:
-                return response.json()
-            else:
-                return {"error": f"HTTP {response.status_code}: {response.text}"}
+            return {"result": result}
         except Exception as e:
-            return {"error": f"Request failed: {str(e)}"}
+            return {"error": f"Keywords search failed: {str(e)}"}
     
     async def read_text(self, reference: str) -> Dict[str, Any]:
         """Read text by reference using the MCP server."""
-        payload = {
-            "method": "tools/call",
-            "params": {
-                "name": "read_text",
-                "arguments": {
-                    "reference": reference
-                }
-            }
-        }
-        
         try:
-            response = await self.session.post(
-                self.server_url,
-                json=payload,
-                headers={"Content-Type": "application/json"}
+            if not self.session:
+                return {"error": "Not connected to MCP server"}
+                
+            result = await self.session.call_tool(
+                "read_text",
+                arguments={"reference": reference}
             )
-            if response.status_code == 200:
-                return response.json()
-            else:
-                return {"error": f"HTTP {response.status_code}: {response.text}"}
+            return {"result": result}
         except Exception as e:
-            return {"error": f"Request failed: {str(e)}"}
+            return {"error": f"Read text failed: {str(e)}"}
     
     async def get_commentaries(self, reference: str) -> Dict[str, Any]:
         """Get commentaries for a reference using the MCP server."""
-        payload = {
-            "method": "tools/call",
-            "params": {
-                "name": "get_commentaries",
-                "arguments": {
-                    "reference": reference
-                }
-            }
-        }
-        
         try:
-            response = await self.session.post(
-                self.server_url,
-                json=payload,
-                headers={"Content-Type": "application/json"}
+            if not self.session:
+                return {"error": "Not connected to MCP server"}
+                
+            result = await self.session.call_tool(
+                "get_commentaries",
+                arguments={"reference": reference}
             )
-            if response.status_code == 200:
-                return response.json()
-            else:
-                return {"error": f"HTTP {response.status_code}: {response.text}"}
+            return {"result": result}
         except Exception as e:
-            return {"error": f"Request failed: {str(e)}"}
+            return {"error": f"Get commentaries failed: {str(e)}"}
+    
+    async def list_tools(self) -> Dict[str, Any]:
+        """List available tools from the MCP server."""
+        try:
+            if not self.session:
+                return {"error": "Not connected to MCP server"}
+                
+            tools = await self.session.list_tools()
+            return {"tools": tools}
+        except Exception as e:
+            return {"error": f"List tools failed: {str(e)}"}
     
     async def close(self):
         """Close the connection."""
-        if self.session:
-            await self.session.aclose()
+        try:
+            if self.session:
+                await self.session.__aexit__(None, None, None)
+            if self.read and self.write:
+                # Close the stdio client context
+                pass  # The context manager should handle cleanup
+        except Exception as e:
+            print(f"Error closing MCP client: {e}")
 
 
 async def ituria_agent_search(query: str) -> str:

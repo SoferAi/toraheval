@@ -3,3 +3,9 @@ __pycache__/evaluators.cpython-311.pyc
 __pycache__/targets.cpython-311.pyc
 .env
 
+targets/__pycache__/simple_target.cpython-311.pyc
+targets/__pycache__/anthropic_targets.cpython-311.pyc
+.gitignore
+targets/__pycache__/ituria_target.cpython-311.pyc
+.gitignore
+targets/__pycache__/__init__.cpython-311.pyc
