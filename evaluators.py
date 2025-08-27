@@ -5,13 +5,39 @@ from openevals.llm import create_llm_as_judge
 from openevals.prompts import CORRECTNESS_PROMPT, RAG_HELPFULNESS_PROMPT
 
 
+# Specific source-finding correctness prompt
+SOURCE_CORRECTNESS_PROMPT = """
+You are evaluating whether the response contains the exact source that is expected.
+
+QUESTION:
+{inputs}
+
+RESPONSE:
+{outputs}
+
+EXPECTED SOURCE (from reference answer):
+{reference_outputs}
+
+Please evaluate ONLY whether the response contains the exact source that appears in the expected answer.
+
+Look for the specific book name, section, and reference details that match the expected source.
+Look also on the content of the response to see if it comes from the expected source.
+
+Provide a score of true/false:
+- true: The response contains the exact source from the expected answer, even if additional context is present, some text is missing, or the format is slightly different
+- false: The response does not contain the exact source, or contains a different/incorrect source
+
+SCORE: [true/false]
+COMMENT: [Brief explanation of whether the exact source was found or not]
+"""
+
 def correctness_evaluator(inputs: dict, outputs: dict, reference_outputs: dict):
     """
-    Evaluator that checks the correctness of the target function's output
-    against the reference output.
+    Evaluator that checks if the target function's output contains the exact 
+    source reference from the expected answer - a simple yes/no evaluation.
     """
     evaluator = create_llm_as_judge(
-        prompt=CORRECTNESS_PROMPT,
+        prompt=SOURCE_CORRECTNESS_PROMPT,
         model="anthropic:claude-3-5-sonnet-20241022",
         feedback_key="correctness",
     )

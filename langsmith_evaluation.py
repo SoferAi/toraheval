@@ -12,14 +12,15 @@ load_dotenv()
 client = Client()
 
 # Load existing dataset
-with open('Q1-dataset.json', 'r', encoding='utf-8') as f:
+with open('dataset/Q1-dataset.json', 'r', encoding='utf-8') as f:
     dataset_examples = json.load(f)
 
 # Create or get dataset in LangSmith
+dataset_name = "Torah Evaluation Dataset Type 1"
 try:
     dataset = client.create_dataset(
-        dataset_name="Torah Evaluation Dataset", 
-        description="A dataset for evaluating Torah-related Q&A responses."
+        dataset_name=dataset_name, 
+        description="A dataset for evaluating Torah-related Q&A responses (Type 1 queries only)."
     )
     # Add examples to the dataset
     client.create_examples(dataset_id=dataset.id, examples=dataset_examples)
@@ -28,7 +29,7 @@ except Exception as e:
     print(f"Dataset might already exist: {e}")
     # If dataset exists, try to find it
     datasets = client.list_datasets()
-    dataset = next((d for d in datasets if d.name == "Torah Evaluation Dataset"), None)
+    dataset = next((d for d in datasets if d.name == dataset_name), None)
     if not dataset:
         raise Exception("Could not create or find dataset")
 
@@ -38,7 +39,7 @@ except Exception as e:
 if __name__ == "__main__":
     # Parse command line arguments
     target_name = "anthropic_sonnet"
-    evaluator_names = None
+    evaluator_names = ["correctness"]  # Only use correctness evaluator
     
     # Handle command line arguments
     if len(sys.argv) > 1:
@@ -66,10 +67,7 @@ if __name__ == "__main__":
     
     try:
         evaluators = get_evaluators(evaluator_names)
-        if evaluator_names:
-            print(f"Using evaluators: {', '.join(evaluator_names)}")
-        else:
-            print(f"Using all evaluators: {', '.join(list_evaluators())}")
+        print(f"Using evaluators: {', '.join(evaluator_names)}")
     except ValueError as e:
         print(f"Error: {e}")
         print("Use 'python langsmith_evaluation.py list' to see available evaluators")
@@ -79,7 +77,7 @@ if __name__ == "__main__":
     
     experiment_results = client.evaluate(
         target_function,
-        data="Torah Evaluation Dataset",
+        data=dataset_name,
         evaluators=evaluators,
         experiment_prefix=f"torah-eval-{target_name}",
     )
