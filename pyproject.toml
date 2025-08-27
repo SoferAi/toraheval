@@ -16,4 +16,7 @@ dependencies = [
     "httpx>=0.25.0",
     "langchain>=0.3.19",
     "langchain-community>=0.3.19",
+    "requests>=2.31.0",
+    "fastapi>=0.104.1",
+    "uvicorn>=0.24.0",
 ]

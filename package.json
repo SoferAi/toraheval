@@ -1,0 +1,19 @@
+{
+  "name": "ituria-eval-api",
+  "version": "1.0.0",
+  "description": "Simple API server replicating Ituria functionality for evaluation",
+  "main": "server.js",
+  "type": "module",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js"
+  },
+  "dependencies": {
+    "@ai-sdk/anthropic": "^1.2.10",
+    "ai": "^4.3.9",
+    "express": "^4.18.2",
+    "cors": "^2.8.5",
+    "dotenv": "^16.3.1",
+    "nanoid": "^5.0.4"
+  }
+}
