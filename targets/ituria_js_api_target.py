@@ -1,13 +1,11 @@
+"""Target function that uses the local Ituria JavaScript API server for Torah Q&A.
 """
-Target function that uses the local Ituria JavaScript API server for Torah Q&A.
-"""
+
 import requests
-import json
-from typing import Dict
+
 
 def ituria_js_api_target(inputs: dict) -> dict:
-    """
-    Torah Q&A system that uses the local JavaScript Ituria API server.
+    """Torah Q&A system that uses the local JavaScript Ituria API server.
     
     This function:
     1. Sends the question to the local JavaScript API server
@@ -18,9 +16,10 @@ def ituria_js_api_target(inputs: dict) -> dict:
         
     Returns:
         Dict with 'answer' key
+
     """
     question = inputs["question"]
-    
+
     try:
         # Send request to local JavaScript API server
         response = requests.post(
@@ -29,13 +28,13 @@ def ituria_js_api_target(inputs: dict) -> dict:
             headers={"Content-Type": "application/json"},
             timeout=1800  # 30 minutes timeout for complex Torah analysis with reasoning
         )
-        
+
         if response.status_code == 200:
             data = response.json()
             return {"answer": data["answer"]}
         else:
             return {"answer": f"API Error {response.status_code}: {response.text}"}
-            
+
     except requests.exceptions.ConnectionError:
         return {"answer": "Error: Could not connect to Ituria JavaScript API server. Make sure it's running on localhost:8333 (PORT=8333 npm start)"}
     except requests.exceptions.Timeout:

@@ -1,13 +1,12 @@
-"""
-Target functions for LangSmith evaluation.
+"""Target functions for LangSmith evaluation.
 
 Each target function represents a different system or approach to evaluate.
 All functions should take inputs dict and return outputs dict.
 """
 
 from .anthropic_targets import anthropic_torah_qa, anthropic_torah_qa_haiku
-from .simple_target import simple_template_response
 from .ituria_js_api_target import ituria_js_api_target
+from .simple_target import simple_template_response
 
 # Registry of available target functions
 TARGET_FUNCTIONS = {
@@ -32,7 +31,7 @@ def list_target_functions():
 
 __all__ = [
     'anthropic_torah_qa',
-    'anthropic_torah_qa_haiku', 
+    'anthropic_torah_qa_haiku',
     'simple_template_response',
     'ituria_js_api_target',
     'TARGET_FUNCTIONS',

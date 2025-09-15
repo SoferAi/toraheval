@@ -1,20 +1,19 @@
-"""
-Simple template-based Torah Q&A target for baseline comparison.
+"""Simple template-based Torah Q&A target for baseline comparison.
 """
 
 
 def simple_template_response(inputs: dict) -> dict:
-    """
-    Simple template-based response for baseline comparison.
+    """Simple template-based response for baseline comparison.
     
     Args:
         inputs: Dict with 'question' key
         
     Returns:
         Dict with 'answer' key
+
     """
     question = inputs["question"].lower()
-    
+
     if "divrei yoel" in question or "divrey yoel" in question:
         return {"answer": "This question relates to Divrei Yoel, a collection of Hasidic teachings. I would need to consult the specific text to provide an accurate answer."}
     elif "moses" in question or "moshe" in question:
