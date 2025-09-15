@@ -1,7 +1,7 @@
 [project]
 name = "toraheval"
 version = "0.1.0"
-description = "Add your description here"
+description = "Torah AI evaluation framework"
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
