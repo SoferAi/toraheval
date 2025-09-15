@@ -1,5 +1,5 @@
-"""Custom evaluators for Torah scholarship evaluation.
-"""
+"""Custom evaluators for Torah scholarship evaluation."""
+
 from openevals.llm import create_llm_as_judge
 from openevals.prompts import RAG_HELPFULNESS_PROMPT
 
@@ -29,10 +29,13 @@ LOOK VERY CAREFULLY at the reference source and the actual response, some times 
 
 SCORE: [true/false]
 COMMENT: [Brief explanation of whether the exact source was found or not]
-"""
+"""  # noqa: E501
+
 
 def correctness_evaluator(inputs: dict, outputs: dict, reference_outputs: dict):
-    """Evaluator that checks if the target function's output contains the exact
+    """Return correctness evaluator result.
+
+    Evaluator checks if the target function's output contains the exact
     source reference from the expected answer - a simple yes/no evaluation.
     """
     evaluator = create_llm_as_judge(
@@ -41,15 +44,15 @@ def correctness_evaluator(inputs: dict, outputs: dict, reference_outputs: dict):
         feedback_key="correctness",
     )
     eval_result = evaluator(
-        inputs=inputs,
-        outputs=outputs,
-        reference_outputs=reference_outputs
+        inputs=inputs, outputs=outputs, reference_outputs=reference_outputs
     )
     return eval_result
 
 
 def helpfulness_evaluator(inputs: dict, outputs: dict, reference_outputs: dict):
-    """Evaluator that checks how well the output addresses the input question.
+    """Return helpfulness evaluator result.
+
+    Evaluator that checks how well the output addresses the input question.
     Does not require reference outputs.
     """
     evaluator = create_llm_as_judge(
@@ -66,7 +69,8 @@ def helpfulness_evaluator(inputs: dict, outputs: dict, reference_outputs: dict):
 
 # Custom Torah-specific evaluator
 TORAH_CITATION_PROMPT = """
-You are evaluating whether a Torah scholarship answer properly cites sources and follows scholarly conventions.
+You are evaluating whether a Torah scholarship answer properly cites sources and follows
+scholarly conventions.
 
 INPUT:
 {inputs}
@@ -86,8 +90,11 @@ SCORE: [true/false]
 COMMENT: [Your explanation here]
 """
 
+
 def torah_citation_evaluator(inputs: dict, outputs: dict, reference_outputs: dict):
-    """Custom evaluator that checks if Torah responses include proper citations
+    """Return citation evaluator result.
+
+    Custom evaluator that checks if Torah responses include proper citations
     and follow scholarly conventions.
     """
     evaluator = create_llm_as_judge(
@@ -104,7 +111,8 @@ def torah_citation_evaluator(inputs: dict, outputs: dict, reference_outputs: dic
 
 # Custom Hebrew/Jewish text handling evaluator
 HEBREW_HANDLING_PROMPT = """
-You are evaluating whether a response properly handles Hebrew text and Jewish religious concepts.
+You are evaluating whether a response properly handles Hebrew text and
+Jewish religious concepts.
 
 INPUT:
 {inputs}
@@ -124,8 +132,11 @@ SCORE: [true/false]
 COMMENT: [Your explanation here]
 """
 
+
 def hebrew_handling_evaluator(inputs: dict, outputs: dict, reference_outputs: dict):
-    """Custom evaluator that checks if responses properly handle Hebrew text
+    """Return hebrew evaluator result.
+
+    Custom evaluator that checks if responses properly handle Hebrew text
     and Jewish religious concepts.
     """
     evaluator = create_llm_as_judge(
@@ -162,8 +173,11 @@ SCORE: [true/false]
 COMMENT: [Your explanation here]
 """
 
+
 def depth_analysis_evaluator(inputs: dict, outputs: dict, reference_outputs: dict):
-    """Custom evaluator that checks the depth and sophistication of Torah analysis.
+    """Return depth analysis evaluator result.
+
+    Custom evaluator that checks the depth and sophistication of Torah analysis.
     """
     evaluator = create_llm_as_judge(
         prompt=DEPTH_ANALYSIS_PROMPT,
@@ -189,10 +203,10 @@ EVALUATOR_FUNCTIONS = {
 
 def get_evaluators(names=None):
     """Get evaluator functions by names.
-    
+
     Args:
         names: List of evaluator names, or None for all evaluators
-        
+
     Returns:
         List of evaluator functions
 

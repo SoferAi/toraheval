@@ -1,19 +1,20 @@
-"""Target function that uses the local Ituria JavaScript API server for Torah Q&A.
-"""
+"""Target function that uses the local Ituria JavaScript API server for Torah Q&A."""
+
+from http import HTTPStatus
 
 import requests
 
 
 def ituria_js_api_target(inputs: dict) -> dict:
     """Torah Q&A system that uses the local JavaScript Ituria API server.
-    
+
     This function:
     1. Sends the question to the local JavaScript API server
     2. Returns the response from the server that uses the same system as ituria
-    
+
     Args:
         inputs: Dict with 'question' key
-        
+
     Returns:
         Dict with 'answer' key
 
@@ -26,17 +27,22 @@ def ituria_js_api_target(inputs: dict) -> dict:
             "http://localhost:8333/chat",
             json={"question": question},
             headers={"Content-Type": "application/json"},
-            timeout=1800  # 30 minutes timeout for complex Torah analysis with reasoning
+            timeout=1800,  # 30 minutes timeout for complex Torah analysis w/ reasoning
         )
 
-        if response.status_code == 200:
+        if response.status_code == HTTPStatus.OK:
             data = response.json()
             return {"answer": data["answer"]}
         else:
             return {"answer": f"API Error {response.status_code}: {response.text}"}
 
     except requests.exceptions.ConnectionError:
-        return {"answer": "Error: Could not connect to Ituria JavaScript API server. Make sure it's running on localhost:8333 (PORT=8333 npm start)"}
+        return {
+            "answer": (
+                "Error: Could not connect to Ituria JavaScript API server. ",
+                "Make sure it's running on localhost:8333 (PORT=8333 npm start)",
+            )
+        }
     except requests.exceptions.Timeout:
         return {"answer": "Error: API request timed out (exceeded 30 min.)"}
     except Exception as e:

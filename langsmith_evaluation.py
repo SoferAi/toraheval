@@ -1,3 +1,5 @@
+"""Main entrypoint for langsmith evaluation."""
+
 import json
 import sys
 
@@ -7,14 +9,15 @@ from langsmith import Client
 from evaluators import get_evaluators, list_evaluators
 from targets import get_target_function, list_target_functions
 
+MIN_ARGUMENTS_FOR_EVAL = 2
 # Load environment variables from .env file
 load_dotenv()
 
 # Initialize LangSmith client
-client  = Client()
+client = Client()
 
 # Load existing dataset
-with open('dataset/Q1-dataset.json', encoding='utf-8') as f:
+with open("dataset/Q1-dataset.json", encoding="utf-8") as f:
     dataset_examples = json.load(f)
 
 # Create or get dataset in LangSmith
@@ -22,7 +25,10 @@ dataset_name = "Torah Evaluation Dataset Type 1 - Updated"
 try:
     dataset = client.create_dataset(
         dataset_name=dataset_name,
-        description="A dataset for evaluating Torah-related Q&A responses (Type 1 queries only)."
+        description=(
+            "A dataset for evaluating Torah-related Q&A responses",
+            " (Type 1 queries only).",
+        ),
     )
     # Add examples to the dataset
     client.create_examples(dataset_id=dataset.id, examples=dataset_examples)
@@ -56,8 +62,8 @@ if __name__ == "__main__":
         else:
             target_name = sys.argv[1]
             # Optional: specify evaluators as second argument (comma-separated)
-            if len(sys.argv) > 2:
-                evaluator_names = sys.argv[2].split(',')
+            if len(sys.argv) > MIN_ARGUMENTS_FOR_EVAL:
+                evaluator_names = sys.argv[2].split(",")
 
     try:
         target_function = get_target_function(target_name)
@@ -81,7 +87,7 @@ if __name__ == "__main__":
         target_function,
         data=dataset_name,
         evaluators=evaluators,
-        experiment_prefix=f"torah-eval-{target_name}"
+        experiment_prefix=f"torah-eval-{target_name}",
     )
 
     print(f"Evaluation complete! Results: {experiment_results}")
