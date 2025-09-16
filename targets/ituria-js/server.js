@@ -8,6 +8,8 @@ import { experimental_createMCPClient as createMCPClient } from 'ai';
 import { nanoid } from 'nanoid';
 import dotenv from 'dotenv';
 import { wrapAISDK } from 'langsmith/experimental/vercel';
+import { RunTree } from 'langsmith';
+import { traceable, withRunTree } from 'langsmith/traceable';
 
 // Load environment variables
 dotenv.config();
@@ -54,10 +56,10 @@ This guide provides systematic instructions for LLMs to interact with the Jewish
 {
   "name": "semantic_search",
   "arguments": {
-    "query": "Your natural language question in English",
-    "reference": "Optional source filter",
-    "topics": "Optional topic filter",
-    "limit": 30-100
+    "query": Your natural language question in English,
+    "reference": Optional source filter,
+    "topics": Optional topic filter,
+    "limit": 50-100
   }
 }
 \`\`\`
@@ -75,7 +77,7 @@ This guide provides systematic instructions for LLMs to interact with the Jewish
   "name": "semantic_search",
   "arguments": {
     "query": "What does Judaism teach about prayer in the morning?",
-    "limit": 40
+    "limit": 50
   }
 }
 
@@ -410,7 +412,7 @@ async function initializeMCPClient() {
     mcpClient = await createMCPClient({
       transport: {
         type: 'sse',
-        url: 'https://sse.ituria.site/sse'
+        url:  "http://127.0.0.1:8555/sse", // Update with actual MCP server URL
       }
     });
 
@@ -429,7 +431,7 @@ async function initializeMCPClient() {
 
 
 // Query rewrite function
-async function rewriteQuery(originalQuery) {
+const rewriteQuery = traceable(async function rewriteQuery(originalQuery) {
   try {
     const rewritePrompt = `You are a Jewish text search assistant specializing in helping users ARTICULATE THEIR SEARCH QUERY to specific teachings, stories, or concepts in traditional Jewish sources. When given a vague or incomplete search query, generate a follow-up clarification question that will help narrow down exactly what the user is looking for.
 if its a clear enough query just reply with a nice rewritten query
@@ -467,7 +469,7 @@ Query: ${originalQuery}
     console.error('Error rewriting query:', error);
     return originalQuery; // Fall back to original query if rewrite fails
   }
-}
+}, { name: "rewriteQuery" });
 
 // Routes
 app.get('/', (req, res) => {
@@ -492,6 +494,51 @@ app.get('/health', (req, res) => {
   });
 });
 
+// Main chat processing function wrapped with traceable
+const processChat = traceable(async function processChat(question, model, jewishLibraryTools) {
+  console.log(`Processing question: ${question}`);
+
+  // Step 1: Rewrite the query
+  const rewrittenQuery = await rewriteQuery(question);
+
+  // System prompt for Torah Q&A (same as ituria)
+  const systemPrompt = `You are a Torah scholar assistant with access to comprehensive Jewish text database tools.`;
+
+  const prompt = jewish_library_usage_prompt + `
+
+ '\n\n**VERY IMPORTANT**:  make sure you find **ALL** the places that this idea appears, not just one instance. 
+ write in detail **EVERY** relevant source with the correct citation.
+ \n\n also, i know that that this speficic source exists in your corpus, so don\'t give up until you find it.
+ 
+ now, answer the following question:\n\n
+ =========================================================\n\n`;
+
+  // Generate response using AI SDK with real MCP tools
+  const result = await generateText({
+    model: anthropic.languageModel(model),
+    system: systemPrompt,
+    prompt: prompt + rewrittenQuery,
+    tools: jewishLibraryTools,
+    maxSteps: 100,
+    maxTokens: 15000,
+    providerOptions: {
+      anthropic: {
+        thinking: { type: 'enabled', budgetTokens: 15000 },
+      },
+    },
+    headers: {
+      'anthropic-beta': 'context-1m-2025-08-07',
+    },
+  });
+
+  return {
+    answer: result.text,
+    reasoning: result.reasoning,
+    reasoningDetails: result.reasoningDetails,
+    timestamp: new Date().toISOString()
+  };
+}, { name: "processChat" });
+
 app.post('/chat', async (req, res) => {
   try {
     const { question, model = 'claude-sonnet-4-20250514' } = req.body;
@@ -508,51 +555,15 @@ app.post('/chat', async (req, res) => {
       return res.status(500).json({ error: 'MCP server not connected. Please check server logs.' });
     }
 
-    console.log(`Processing question: ${question}`);
-
-    // Step 1: Rewrite the query
-    const rewrittenQuery = await rewriteQuery(question);
-
-    // System prompt for Torah Q&A (same as ituria)
-    const systemPrompt =`You are a Torah scholar assistant with access to comprehensive Jewish text database tools.`
+    // Extract tracing headers and create/continue trace
+    const runTree = RunTree.fromHeaders(req.headers);
     
+    // Process the chat request with distributed tracing
+    const result = await withRunTree(runTree, () => 
+      processChat(question, model, jewishLibraryTools)
+    );
 
-const prompt = jewish_library_usage_prompt + `
-
-
- '\n\n**VERY IMPORTANT**:  make sure you find **ALL** the places that this idea appears, not just one instance. 
- write in detail **EVERY** relevant source with the correct citation.
- \n\n also, i know that that this speficic source exists in your corpus, so don\'t give up until you find it.
- 
- now, answer the following question:\n\n
- =========================================================\n\n`
- ;
-
-
-    // Generate response using AI SDK with real MCP tools
-    const result = await generateText({
-      model: anthropic.languageModel(model),
-      system: systemPrompt,
-      prompt:prompt + rewrittenQuery ,
-      tools: jewishLibraryTools,
-      maxSteps:100,
-      maxTokens: 15000,
-      providerOptions: {
-        anthropic: {
-          thinking: { type: 'enabled', budgetTokens: 15000 },
-        },
-      },
-       headers: {
-    'anthropic-beta': 'context-1m-2025-08-07',
-  },
-    });
-
-    res.json({
-      answer: result.text,
-      reasoning: result.reasoning,
-      reasoningDetails: result.reasoningDetails,
-      timestamp: new Date().toISOString()
-    });
+    res.json(result);
 
   } catch (error) {
     console.error('Error processing chat request:', error);
