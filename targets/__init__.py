@@ -4,8 +4,8 @@ Each target function represents a different system or approach to evaluate.
 All functions should take inputs dict and return outputs dict.
 """
 
-from .anthropic_targets import anthropic_torah_qa
 from .anthropic_js_api_target import anthropic_js_api_target
+from .anthropic_targets import anthropic_torah_qa
 from .simple_target import simple_template_response
 
 # Registry of available target functions

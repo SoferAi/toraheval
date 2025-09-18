@@ -24,3 +24,8 @@ dependencies = [
 [tool.ruff.lint]
 select = ["F", "E", "W", "I", "N", "D", "UP", "PLR"]
 ignore = ["D213", "D203"]
+
+[dependency-groups]
+dev = [
+    "ruff>=0.13.1",
+]

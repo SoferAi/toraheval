@@ -42,11 +42,11 @@ def anthropic_js_api_target(inputs: dict) -> dict:
         if response.status_code == HTTPStatus.OK:
             data = response.json()
             result = {"answer": data["answer"]}
-            
+
             # Extract usage metadata if available
             if "usage_metadata" in data:
                 result["usage_metadata"] = data["usage_metadata"]
-            
+
             return result
         else:
             return {"answer": f"API Error {response.status_code}: {response.text}"}
