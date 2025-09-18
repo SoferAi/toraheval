@@ -26,9 +26,8 @@ uv run langsmith_evaluation.py list
 ### Run evaluation with specific target function:
 ```bash
 uv run langsmith_evaluation.py anthropic_sonnet
-uv run langsmith_evaluation.py anthropic_haiku
+uv run langsmith_evaluation.py anthropic_js_api
 uv run langsmith_evaluation.py simple_template
-uv run langsmith_evaluation.py ituria_agent
 ```
 
 ### Run evaluation with specific evaluators:
@@ -49,10 +48,40 @@ uv run langsmith_evaluation.py
 
 The evaluation system supports multiple target functions defined in the `targets/` directory:
 
-- **anthropic_sonnet**: Uses Claude 3.5 Sonnet (high quality)
-- **anthropic_haiku**: Uses Claude 3 Haiku (faster, cheaper)  
+- **anthropic_sonnet**: Uses Claude 3.5 Sonnet via Python SDK (high quality)
+- **anthropic_js_api**: Uses Anthropic API via JavaScript server with distributed tracing
 - **simple_template**: Template-based baseline responses
-- **ituria_agent**: Comprehensive search using MCP Jewish Library server
+
+### JavaScript API Server
+
+The `anthropic_js_api` target requires running a separate JavaScript server:
+
+```bash
+# Navigate to the anthropic-js directory
+cd targets/anthropic-js
+
+# Install dependencies
+npm install
+
+# Set up .env with your API keys
+cp ../../.env .env  # or create manually
+
+# Start the server
+PORT=8334 npm start
+```
+
+The server will run on `http://localhost:8334` and provides distributed tracing integration.
+
+### Distributed Tracing
+
+The `anthropic_js_api` target implements distributed tracing to maintain evaluation context across the HTTP boundary:
+
+- **Trace Continuity**: The Python evaluation framework passes LangSmith tracing headers to the JavaScript server
+- **Automatic Context**: The server automatically extracts trace headers using `RunTree.fromHeaders()`
+- **Usage Tracking**: API calls, tokens, and response metadata are tracked within the trace context
+- **Seamless Integration**: No additional configuration needed - tracing works automatically when both Python and JavaScript components have LangSmith configured with `LANGSMITH_TRACING=true` and `LANGSMITH_API_KEY`
+
+This enables complete visibility into the evaluation pipeline across different technologies while maintaining performance and cost tracking.
 
 ## Evaluators
 
@@ -114,6 +143,45 @@ EVALUATOR_FUNCTIONS["my_metric"] = my_custom_evaluator
 ## Dataset
 
 The evaluation uses `Q1-dataset.json` which contains Hebrew Torah scholarship questions and reference answers.
+
+## Testing Targets
+
+You can test individual target functions before running full evaluations:
+
+```python
+# Test simple template target
+from targets import get_target_function
+simple_target = get_target_function('simple_template')
+result = simple_target({'question': 'What does Divrei Yoel teach about prayer?'})
+print(result['answer'])
+
+# Test anthropic sonnet target (requires ANTHROPIC_API_KEY)
+anthropic_target = get_target_function('anthropic_sonnet') 
+result = anthropic_target({'question': 'What is the meaning of Bereishit?'})
+print(result['answer'])
+
+# Test anthropic JS API target (requires server running on localhost:8334)
+js_target = get_target_function('anthropic_js_api')
+result = js_target({'question': 'What is the Jewish view on charity?'})
+print(result['answer'])
+print(result.get('usage_metadata', 'No usage data'))
+```
+
+### Testing the JavaScript Server
+
+```bash
+# Start the server
+cd targets/anthropic-js
+npm start
+
+# In another terminal, test the API directly
+curl -X POST http://localhost:8334/chat \
+  -H "Content-Type: application/json" \
+  -d '{"question": "What does the Torah say about kindness?"}'
+
+# Check server health
+curl http://localhost:8334/health
+```
 
 ## Results
 
