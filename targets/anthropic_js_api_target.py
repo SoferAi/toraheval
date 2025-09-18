@@ -1,4 +1,4 @@
-"""Target function that uses the local Ituria JavaScript API server for Torah Q&A."""
+"""Target function that uses the Anthropic JavaScript API server for Torah Q&A."""
 
 from http import HTTPStatus
 
@@ -6,14 +6,14 @@ import requests
 from langsmith.run_helpers import get_current_run_tree, traceable
 
 
-@traceable(name="ituria_js_api_target")
-def ituria_js_api_target(inputs: dict) -> dict:
-    """Torah Q&A system that uses the local JavaScript Ituria API server.
+@traceable(name="anthropic_js_api_target")
+def anthropic_js_api_target(inputs: dict) -> dict:
+    """Torah Q&A system that uses the Anthropic JavaScript API server.
 
     This function:
     1. Sends the question to the local JavaScript API server with
        distributed tracing headers
-    2. Returns the response from the server that uses the same system as ituria
+    2. Returns the response from the server using Anthropic API directly
 
     Args:
         inputs: Dict with 'question' key
@@ -33,25 +33,20 @@ def ituria_js_api_target(inputs: dict) -> dict:
 
         # Send request to local JavaScript API server
         response = requests.post(
-            "http://localhost:8333/chat",
+            "http://localhost:8334/chat",
             json={"question": question},
             headers=headers,
-            timeout=1800,  # 30 minute timeout for complex Torah analysis with reasoning
+            timeout=300,  # 5 minute timeout for Torah Q&A
         )
 
         if response.status_code == HTTPStatus.OK:
             data = response.json()
             result = {"answer": data["answer"]}
-            
-            # Extract usage metadata if available from ituria-js response
+
+            # Extract usage metadata if available
             if "usage_metadata" in data:
                 result["usage_metadata"] = data["usage_metadata"]
-            elif "reasoning_details" in data and data.get("reasoning_details"):
-                # Extract from reasoning details if available
-                reasoning_details = data["reasoning_details"]
-                if isinstance(reasoning_details, dict) and "usage" in reasoning_details:
-                    result["usage_metadata"] = reasoning_details["usage"]
-            
+
             return result
         else:
             return {"answer": f"API Error {response.status_code}: {response.text}"}
@@ -59,11 +54,11 @@ def ituria_js_api_target(inputs: dict) -> dict:
     except requests.exceptions.ConnectionError:
         return {
             "answer": (
-                "Error: Could not connect to Ituria JavaScript API server. ",
-                "Make sure it's running on localhost:8333 (PORT=8333 npm start)",
+                "Error: Could not connect to Anthropic JavaScript API server. "
+                "Make sure it's running on localhost:8334 (PORT=8334 npm start)"
             )
         }
     except requests.exceptions.Timeout:
-        return {"answer": "Error: API request timed out (exceeded 30 min.)"}
+        return {"answer": "Error: API request timed out (exceeded 5 min.)"}
     except Exception as e:
         return {"answer": f"Error: {str(e)}"}
