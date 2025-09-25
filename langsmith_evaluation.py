@@ -7,9 +7,7 @@ from dotenv import load_dotenv
 from langsmith import Client
 
 from evaluators import get_evaluators, list_evaluators
-from targets import get_target_function, list_target_functions
-
-MIN_ARGUMENTS_FOR_EVAL = 2
+from targets import torah_qa_target
 # Load environment variables from .env file
 load_dotenv()
 
@@ -25,10 +23,7 @@ dataset_name = "Torah Evaluation Dataset Type 1 - Updated"
 try:
     dataset = client.create_dataset(
         dataset_name=dataset_name,
-        description=(
-            "A dataset for evaluating Torah-related Q&A responses",
-            " (Type 1 queries only).",
-        ),
+        description="A dataset for evaluating Torah-related Q&A responses (Type 1 queries only).",
     )
     # Add examples to the dataset
     client.create_examples(dataset_id=dataset.id, examples=dataset_examples)
@@ -46,32 +41,18 @@ except Exception as e:
 # Run the evaluation
 if __name__ == "__main__":
     # Parse command line arguments
-    target_name = "anthropic_sonnet"
-    evaluator_names = ["correctness"]  # Only use correctness evaluator
+    evaluator_names = ["correctness"]  # Default evaluators
 
     # Handle command line arguments
     if len(sys.argv) > 1:
         if sys.argv[1] == "list":
-            print("Available target functions:")
-            for name in list_target_functions():
-                print(f"  - {name}")
-            print("\nAvailable evaluators:")
+            print("Available evaluators:")
             for name in list_evaluators():
                 print(f"  - {name}")
             sys.exit(0)
         else:
-            target_name = sys.argv[1]
-            # Optional: specify evaluators as second argument (comma-separated)
-            if len(sys.argv) > MIN_ARGUMENTS_FOR_EVAL:
-                evaluator_names = sys.argv[2].split(",")
-
-    try:
-        target_function = get_target_function(target_name)
-        print(f"Using target function: {target_name}")
-    except ValueError as e:
-        print(f"Error: {e}")
-        print("Use 'python langsmith_evaluation.py list' to see available functions")
-        sys.exit(1)
+            # Optional: specify evaluators as argument (comma-separated)
+            evaluator_names = sys.argv[1].split(",")
 
     try:
         evaluators = get_evaluators(evaluator_names)
@@ -81,13 +62,14 @@ if __name__ == "__main__":
         print("Use 'python langsmith_evaluation.py list' to see available evaluators")
         sys.exit(1)
 
-    print("Starting evaluation...")
+    print("Starting Torah Q&A evaluation...")
+    print("Target: API server (make sure it's running on localhost:8334)")
 
     experiment_results = client.evaluate(
-        target_function,
+        torah_qa_target,
         data=dataset_name,
         evaluators=evaluators,
-        experiment_prefix=f"torah-eval-{target_name}",
+        experiment_prefix="torah-eval-api",
     )
 
     print(f"Evaluation complete! Results: {experiment_results}")
