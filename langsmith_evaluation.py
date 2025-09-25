@@ -8,6 +8,7 @@ from langsmith import Client
 
 from evaluators import get_evaluators, list_evaluators
 from targets import torah_qa_target
+
 # Load environment variables from .env file
 load_dotenv()
 
@@ -23,7 +24,10 @@ dataset_name = "Torah Evaluation Dataset Type 1 - Updated"
 try:
     dataset = client.create_dataset(
         dataset_name=dataset_name,
-        description="A dataset for evaluating Torah-related Q&A responses (Type 1 queries only).",
+        description=(
+            "A dataset for evaluating Torah-related Q&A responses "
+            "(Type 1 queries only)."
+        ),
     )
     # Add examples to the dataset
     client.create_examples(dataset_id=dataset.id, examples=dataset_examples)
