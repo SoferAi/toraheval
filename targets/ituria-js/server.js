@@ -5,7 +5,6 @@ import cors from 'cors';
 import { createAnthropic } from '@ai-sdk/anthropic';
 import * as ai from 'ai';
 import { experimental_createMCPClient as createMCPClient, stepCountIs } from 'ai';
-import { nanoid } from 'nanoid';
 import dotenv from 'dotenv';
 import { wrapAISDK } from 'langsmith/experimental/vercel';
 import { RunTree } from 'langsmith';
@@ -15,7 +14,7 @@ import { traceable, withRunTree } from 'langsmith/traceable';
 dotenv.config();
 
 // Wrap AI SDK functions with LangSmith tracing
-const { generateText, streamText, generateObject, streamObject } = wrapAISDK(ai);
+const { generateText, } = wrapAISDK(ai);
 
 const app = express();
 const port = process.env.PORT || 8333;
@@ -29,11 +28,8 @@ const anthropic = createAnthropic({
   apiKey: process.env.ANTHROPIC_API_KEY,
 });
 
-// Jewish Library usage prompt (exact same as original ituria)
+// Jewish Library usage prompt 
 const jewish_library_usage_prompt = `
-
-Today's date is ${new Date().toISOString().split('T')[0]}.
-
 # Jewish Library MCP Server: LLM Usage Guide
 
 ## CRITICAL LANGUAGE REQUIREMENT
@@ -59,7 +55,7 @@ This guide provides systematic instructions for LLMs to interact with the Jewish
     "query": Your natural language question in English,
     "reference": Optional source filter,
     "topics": Optional topic filter,
-    "limit": 15-35
+    "limit": 25-55
   }
 }
 \`\`\`
@@ -77,7 +73,8 @@ This guide provides systematic instructions for LLMs to interact with the Jewish
   "name": "semantic_search",
   "arguments": {
     "query": "What does Judaism teach about prayer in the morning?",
-    "limit": 30
+    "reference": "תפארת שלמה",
+    "limit": 40
   }
 }
 
@@ -97,13 +94,13 @@ This guide provides systematic instructions for LLMs to interact with the Jewish
     "text": "Hebrew/Aramaic/English search terms/words",
     "reference": "Optional source filter",
     "topics": "Optional topic filter",
-    "num_results": 15-35
+    "num_results": 25-55
   }
 }
 \`\`\`
 
 **Key properties:**
-- Works with Hebrew/Aramaic AND English terms
+- Works with Hebrew/Aramaic OR English terms (perform separate searches for each language)
 - Supports elastic search syntax
 - Returns text snippets with highlights
 - Always follow up with \`read_text\` for complete context
@@ -174,7 +171,7 @@ For Keywords Search:
   "name": "semantic_search",
   "arguments": {
     "query": "What are the laws of Shabbat candles?",
-    "limit": 25
+    "limit": 35
   }
 }
 
@@ -184,7 +181,7 @@ For Keywords Search:
   "arguments": {
     "text": "נר שבת (הדלקה OR הדלקת)",
     "topics": "הלכה",
-    "num_results": 20
+    "num_results": 45
   }
 }
 
@@ -208,58 +205,13 @@ If the user provides an exact reference, retrieve it directly but also consider 
 \`\`\`
 
 
-## Common Search Patterns
-
-### Pattern 1: Multi-Method Deep Dive
-\`\`\`json
-// Step 1: Semantic search for initial understanding
-{
-  "name": "semantic_search",
-  "arguments": {"query": "What is the Jewish view on business ethics?", "limit": 25}
-}
-
-// Step 2: Keywords search for specific terms
-{
-  "name": "keywords_search",
-  "arguments": {"text": "משא ומתן AND יושר", "topics": "הלכה", "num_results": 20}
-}
-
-// Step 3: Retrieve full text of relevant sources
-{
-  "name": "read_text",
-  "arguments": {"reference": "בבא מציעא דף נח"}
-}
-\`\`\`
-
-### Pattern 2: Chained Exploration
-\`\`\`json
-// Step 1: Keywords search for specific terms
-{
-  "name": "keywords_search",
-  "arguments": {"text": "צדקה AND ברכה", "num_results": 20}
-}
-
-// Step 2: Read full text of relevant results
-{
-  "name": "read_text",
-  "arguments": {"reference": "משנה תורה הלכות מתנות עניים פרק יז הלכה א"}
-}
-
-// Step 3: Get commentaries for depth
-{
-  "name": "get_commentaries",
-  "arguments": {"reference": "משנה תורה הלכות מתנות עניים פרק יז הלכה א"}
-}
-\`\`\`
-
 
 ## Best Practices for LLM Implementation
 
 ### 1. Implement the Four-Phase Search Pattern
-- Phase 1: Both semantic_search AND keywords_search 
-- Phase 2: Retrieve full texts with \`read_text\` for relevant references
-- Phase 3: Get commentaries with \`get_commentaries\` for key passages
-- Phase 4: Read important commentaries with \`read_text\`
+- Phase 1: Both semantic_search AND keywords_search
+- Phase 2: For EACH relevant source found, use read_text to get full passages
+- Phase 3: refine searches based on initial findings
 - Never rely solely on search snippets for answers. instead, read the full text with \`read_text\`.
 
 ### 2. Use Source-Appropriate Language
@@ -293,19 +245,6 @@ Examples: "speech" → "דיבור", "why" → "מאי טעמא", "said" → "ו
 1. If search yields no results, acknowledge explicitly and suggest alternatives
 2. Never fabricate references or content
 3. Consider spelling variations for important terms
-
-## Processing Results Algorithmically
-
-### For All Search Results:
-1. Always use \`read_text\` to retrieve complete texts - never rely on snippets alone
-2. Get commentaries for key passages when needed
-3. Verify all information from original sources before providing final answers
-
-## Function Selection Guidelines
-
-### When to use different functions:
-- **Both semantic_search AND keywords_search**: For most queries, use both in parallel
-- **get_commentaries**: After identifying important passages for deeper understanding
 
 ## Common Pitfalls and Prevention
 
@@ -453,18 +392,45 @@ const processChat = traceable(async function processChat(question, model, jewish
   // System prompt components with caching - AI SDK 5.0 format
   const baseSystemPrompt = "You are a Torah scholar assistant with access to comprehensive Jewish text database tools.";
   
-  const userPrompt = `\n\n**VERY IMPORTANT**: make sure you find **ALL** the places that this idea appears, not just one instance. 
-write in detail **EVERY** relevant source with the correct citation.
+  const userPrompt = `
+**CRITICAL REQUIREMENT - COMPREHENSIVE SOURCE COVERAGE**: 
+Your answer MUST include EVERY SINGLE source that is relevant to this topic. Do not stop after finding a few sources - the user expects comprehensive coverage of ALL occurrences. 
 
-When you find a relevant source, don't stop at the first occurrence - search thoroughly within that same work to find ALL places where this concept is mentioned. For example:
-- If you find it in Rashi on Genesis 1:1, also check Rashi on other verses where this idea appears
-- If you find it in Bava Metzia 58a, also search other pages in Bava Metzia and related tractates
-- If you find it in one chapter of Mishneh Torah, search other relevant chapters in the same work
-- If you find it in one section of Shulchan Aruch, check other relevant sections
+**Search Strategy - MANDATORY STEPS**:
+1. Use BOTH semantic_search AND keywords_search with multiple variations
+2. Search in Hebrew, Aramaic, AND English terms (separate searches for each language)
+3. For EACH source you find, read the FULL TEXT and then search for related passages in the same work
+4. Search related works and cross-references mentioned in the sources
+5. Continue searching until you have exhaustively covered all possibilities
 
-List EVERY occurrence with complete citations, even if they seem similar. The user wants comprehensive coverage, not just representative examples.
+**When you find ANY relevant source**:
+- Search for ALL other instances of this concept in the SAME work (entire tractate, entire section, etc.)
+- Look for parallel discussions in related works
+- Follow cross-references and citations mentioned in the text
 
-now, answer the following question:
+**Examples of THOROUGH coverage**:
+- If you find it in Rashi on Genesis 1:1, search ALL of Rashi's commentary for this concept
+- If you find it in Bava Metzia 58a, search the ENTIRE tractate Bava Metzia and related tractates
+- If you find it in one chapter of Mishneh Torah, search ALL relevant sections throughout Mishneh Torah
+- If you find it in one section of Shulchan Aruch, check ALL four sections and their commentaries
+- If you find it in one Chassidic work, check other works by the same author and related teachings
+
+**Citation Requirements - EVERY SINGLE MENTION**:
+- List EVERY occurrence with complete, precise citations
+- Include ALL instances even if they contain identical or nearly identical content - the user wants EVERY single place it appears
+- If the same teaching appears in 5 different places, cite ALL 5 places individually with full citations
+- If the same concept is mentioned in 20 different sources, list ALL 20 sources separately
+- Do NOT group similar sources together - cite each occurrence individually
+- Provide the exact location (chapter, verse, page, section, etc.) for each source
+- Include links when available
+
+**Repetition is REQUIRED**: 
+Even if you find the exact same quote or teaching in multiple locations, cite EVERY single location where it appears. The user values complete bibliographic coverage over avoiding repetition.
+
+**Quality Control**:
+Your answer will be considered INCOMPLETE if you present only a few sources when many more exist, or if you group similar sources together instead of citing each occurrence individually. The user values exhaustive citation of EVERY mention over brevity.
+
+now, answer the following question with COMPLETE comprehensive coverage:
 
 =========================================================
 
