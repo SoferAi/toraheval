@@ -26,7 +26,7 @@ def torah_qa_target(inputs: dict) -> dict:
 
     """
     question = inputs["question"]
-    api_url = inputs.get("api_url", "http://localhost:8334/chat")
+    api_url = inputs.get("api_url", "http://localhost:8333/chat")
 
     try:
         # Get current run tree for distributed tracing
@@ -47,10 +47,14 @@ def torah_qa_target(inputs: dict) -> dict:
             data = response.json()
             result = {"answer": data["answer"]}
 
-            # Extract any additional metadata if available
-            for key in ["usage_metadata", "timestamp", "model_info"]:
+            # Extract any additional metadata if available - INCLUDING SOURCES
+            for key in ["sources", "summary", "reasoning", "usage_metadata", "timestamp", "model_info"]:
                 if key in data:
                     result[key] = data[key]
+
+            # Log sources count for debugging
+            sources_count = len(result.get("sources", []))
+            print(f"[Target] Received {sources_count} sources from API server")
 
             return result
         else:
