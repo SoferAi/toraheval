@@ -47,8 +47,8 @@ def torah_qa_target(inputs: dict) -> dict:
             data = response.json()
             result = {"answer": data["answer"]}
 
-            # Extract any additional metadata if available - INCLUDING SOURCES
-            for key in ["sources", "summary", "reasoning", "usage_metadata", "timestamp", "model_info"]:
+            # Extract any additional metadata if available
+            for key in ["sources", "summary",]:
                 if key in data:
                     result[key] = data[key]
 
