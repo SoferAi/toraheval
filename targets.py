@@ -40,7 +40,7 @@ def torah_qa_target(inputs: dict) -> dict:
             api_url,
             json={"question": question},
             headers=headers,
-            timeout=300,  # 5 minute timeout for Torah Q&A
+            timeout=900,  # 15 minute timeout for Torah Q&A
         )
 
         if response.status_code == HTTPStatus.OK:
