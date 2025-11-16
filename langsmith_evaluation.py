@@ -17,18 +17,17 @@ load_dotenv()
 client = Client()
 
 # Load existing dataset
-with open("dataset/Q1-dataset.json", encoding="utf-8") as f:
-    dataset_examples = json.load(f)
+with open("dataset/Q2-dataset.jsonl", encoding="utf-8") as f:
+    dataset_examples = [json.loads(line) for line in f]
 
 # Create or get dataset in LangSmith
-dataset_name = "Torah Evaluation Dataset Type 1 - Updated"
+dataset_name = "Torah Evaluation Dataset Type 2 - Updated"
 try:
     dataset = client.create_dataset(
         dataset_name=dataset_name,
-        description=(
-            "A dataset for evaluating Torah-related Q&A responses",
-            " (Type 1 queries only).",
-        ),
+        description=
+            "A dataset for evaluating Torah source-finding responses"
+            " (Type 2 queries - concept source finding)."        
     )
     # Add examples to the dataset
     client.create_examples(dataset_id=dataset.id, examples=dataset_examples)
