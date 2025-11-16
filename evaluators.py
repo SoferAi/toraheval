@@ -191,6 +191,31 @@ COMMENT: [Your explanation here]
 """
 
 
+# Grounding evaluator for Q2 dataset - checks if concept is supported by sources
+GROUNDING_PROMPT = """
+אתה מעריך האם התשובה מביאה מקורות שמבססים בצורה ברורה ומפורשת את הרעיון שהוצג בשאלה.
+
+השאלה (רעיון הלכתי/השקפתי):
+{inputs}
+
+התשובה:
+{outputs}
+
+נא להעריך את התשובה על פי הקריטריונים הבאים:
+1. האם התשובה מביאה מקורות מפורשים (ציטוטים מדויקים, מראי מקומות)?
+2. האם המקורות שהובאו תומכים באופן ברור ומפורש ברעיון שבשאלה?
+3. האם המקורות מספקים ביסוס משמעותי לרעיון (לא רק רמיזות או קשרים רופפים)?
+4. האם המקורות מצוטטים בצורה נכונה ומדויקת?
+
+ציון:
+- true: התשובה מביאה מקורות ברורים ומפורשים שמבססים את הרעיון בצורה משמעותית
+- false: התשובה אינה מביאה מקורות, או שהמקורות אינם תומכים בצורה ברורה ומפורשת ברעיון
+
+SCORE: [true/false]
+COMMENT: [הסבר קצר על איכות הביסוס במקורות]
+"""
+
+
 @traceable(
     run_type="llm",
     metadata={"ls_provider": "anthropic", "ls_model_name": "claude-sonnet-4-20250514"}
@@ -212,6 +237,29 @@ def depth_analysis_evaluator(inputs: dict, outputs: dict, reference_outputs: dic
     return eval_result
 
 
+@traceable(
+    run_type="llm",
+    metadata={"ls_provider": "anthropic", "ls_model_name": "claude-sonnet-4-20250514"}
+)
+def grounding_evaluator(inputs: dict, outputs: dict, reference_outputs: dict):
+    """Return grounding evaluator result.
+
+    Custom evaluator for Q2 dataset that checks if the response provides
+    clear and explicit sources that ground the concept/idea presented in the question.
+    No reference output needed - evaluates source quality only.
+    """
+    evaluator = create_llm_as_judge(
+        prompt=GROUNDING_PROMPT,
+        model="anthropic:claude-sonnet-4-20250514",
+        feedback_key="grounding",
+    )
+    eval_result = evaluator(
+        inputs=inputs,
+        outputs=outputs,
+    )
+    return eval_result
+
+
 # Registry of available evaluators
 EVALUATOR_FUNCTIONS = {
     "correctness": correctness_evaluator,
@@ -219,6 +267,7 @@ EVALUATOR_FUNCTIONS = {
     "torah_citations": torah_citation_evaluator,
     "hebrew_handling": hebrew_handling_evaluator,
     "depth_analysis": depth_analysis_evaluator,
+    "grounding": grounding_evaluator,
 }
 
 

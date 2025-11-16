@@ -1,6 +1,6 @@
 """Torah Q&A API Target for LangSmith Evaluation.
 
-This module provides a single API target function that connects to any compatible
+This module provides API target functions that connect to any compatible
 server implementation (JavaScript, Python, etc.) for Torah Q&A evaluation.
 """
 
@@ -69,6 +69,68 @@ def torah_qa_target(inputs: dict) -> dict:
         }
     except requests.exceptions.Timeout:
         return {"answer": "Error: API request timed out (exceeded 5 min.)"}
+    except Exception as e:
+        return {"answer": f"Error: {str(e)}"}
+
+
+@traceable(name="q2_grounding_target")
+def q2_grounding_target(inputs: dict) -> dict:
+    """Torah concept grounding system for Q2 dataset.
+
+    This function sends Torah concepts/ideas to the API server and evaluates
+    whether the response provides clear and explicit sources that ground the concept.
+
+    Args:
+        inputs: Dict with 'question' key (Torah concept/idea) and optional 'api_url' key
+
+    Returns:
+        Dict with 'answer' key containing sources and grounding for the concept
+
+    """
+    question = inputs["question"]
+    api_url = inputs.get("api_url", "http://localhost:8333/chat")
+
+    try:
+        # Get current run tree for distributed tracing
+        headers = {"Content-Type": "application/json"}
+        if run_tree := get_current_run_tree():
+            # Add LangSmith tracing headers for distributed tracing
+            headers.update(run_tree.to_headers())
+
+        # Send request to API server
+        response = requests.post(
+            api_url,
+            json={"question": question},
+            headers=headers,
+            timeout=900,  # 15 minute timeout for Torah Q&A
+        )
+
+        if response.status_code == HTTPStatus.OK:
+            data = response.json()
+            result = {"answer": data["answer"]}
+
+            # Extract any additional metadata if available
+            for key in ["sources", "summary"]:
+                if key in data:
+                    result[key] = data[key]
+
+            # Log sources count for debugging
+            sources_count = len(result.get("sources", []))
+            print(f"[Q2 Grounding] Received {sources_count} sources from API server")
+
+            return result
+        else:
+            return {"answer": f"API Error {response.status_code}: {response.text}"}
+
+    except requests.exceptions.ConnectionError:
+        return {
+            "answer": (
+                f"Error: Could not connect to API server at {api_url}. "
+                f"Make sure the server is running."
+            )
+        }
+    except requests.exceptions.Timeout:
+        return {"answer": "Error: API request timed out (exceeded 15 min.)"}
     except Exception as e:
         return {"answer": f"Error: {str(e)}"}
 
