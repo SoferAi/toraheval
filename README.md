@@ -1,6 +1,6 @@
 # Torah Evaluation with LangSmith
 
-This project provides a LangSmith evaluation setup for Torah Q&A systems using various AI models.
+This project provides a LangSmith evaluation setup for Torah Q&A systems. The system uses a single API-based target that can connect to different server implementations.
 
 ## Setup
 
@@ -18,70 +18,94 @@ ANTHROPIC_API_KEY=your_anthropic_api_key
 
 ## Usage
 
-### List available target functions and evaluators:
+### List available evaluators:
 ```bash
 uv run langsmith_evaluation.py list
-```
-
-### Run evaluation with specific target function:
-```bash
-uv run langsmith_evaluation.py anthropic_sonnet
-uv run langsmith_evaluation.py anthropic_js_api
-uv run langsmith_evaluation.py simple_template
 ```
 
 ### Run evaluation with specific evaluators:
 ```bash
 # Use only correctness and helpfulness evaluators
-uv run langsmith_evaluation.py anthropic_sonnet correctness,helpfulness
+uv run langsmith_evaluation.py correctness,helpfulness
 
 # Use only Torah-specific evaluators
-uv run langsmith_evaluation.py anthropic_sonnet torah_citations,hebrew_handling
+uv run langsmith_evaluation.py torah_citations,hebrew_handling
 ```
 
-### Run evaluation with default (anthropic_sonnet, all evaluators):
+### Run evaluation with default evaluators:
 ```bash
 uv run langsmith_evaluation.py
 ```
 
-## Target Functions
+## Architecture
 
-The evaluation system supports multiple target functions defined in the `targets/` directory:
+The evaluation system uses a simple architecture:
 
-- **anthropic_sonnet**: Uses Claude 3.5 Sonnet via Python SDK (high quality)
-- **anthropic_js_api**: Uses Anthropic API via JavaScript server with distributed tracing
-- **simple_template**: Template-based baseline responses
+- **Single API Target**: The evaluation system makes HTTP requests to a server running on `localhost:8334`
+- **Server Templates**: Multiple server implementations are provided in the `servers/` directory
+- **Distributed Tracing**: LangSmith tracing headers are passed through for complete visibility
 
-### JavaScript API Server
+## Server Templates
 
-The `anthropic_js_api` target requires running a separate JavaScript server:
+The `servers/` directory contains different server implementations that all provide the same API interface:
 
+### JavaScript Server (anthropic-js)
 ```bash
-# Navigate to the anthropic-js directory
-cd targets/anthropic-js
-
-# Install dependencies
+cd servers/anthropic-js
 npm install
-
-# Set up .env with your API keys
-cp ../../.env .env  # or create manually
-
-# Start the server
+cp ../../.env .env
 PORT=8334 npm start
 ```
 
-The server will run on `http://localhost:8334` and provides distributed tracing integration.
+### Python Server (anthropic-python)
+```bash
+cd servers/anthropic-python
+pip install -r requirements.txt
+cp ../../.env .env
+PORT=8334 python server.py
+```
 
-### Distributed Tracing
+## API Interface
 
-The `anthropic_js_api` target implements distributed tracing to maintain evaluation context across the HTTP boundary:
+All servers must implement these endpoints:
 
-- **Trace Continuity**: The Python evaluation framework passes LangSmith tracing headers to the JavaScript server
-- **Automatic Context**: The server automatically extracts trace headers using `RunTree.fromHeaders()`
+### POST /chat
+Main endpoint for Torah Q&A questions.
+```json
+// Request
+{
+  "question": "What does the Torah say about charity?",
+  "model": "claude-3-5-sonnet-20241022"
+}
+
+// Response
+{
+  "answer": "The Torah teaches that charity (tzedakah) is...",
+  "usage_metadata": {
+    "input_tokens": 120,
+    "output_tokens": 250,
+    "total_tokens": 370
+  },
+  "timestamp": "2024-01-15T10:30:00Z"
+}
+```
+
+### GET /health
+Health check endpoint.
+
+### GET /
+Server information endpoint.
+
+## Distributed Tracing
+
+The system supports distributed tracing with LangSmith:
+
+- **Trace Continuity**: The evaluation framework passes LangSmith tracing headers to the server
+- **Automatic Context**: Servers extract trace headers using `RunTree.from_headers()`
 - **Usage Tracking**: API calls, tokens, and response metadata are tracked within the trace context
-- **Seamless Integration**: No additional configuration needed - tracing works automatically when both Python and JavaScript components have LangSmith configured with `LANGSMITH_TRACING=true` and `LANGSMITH_API_KEY`
+- **Seamless Integration**: Works automatically when both components have LangSmith configured
 
-This enables complete visibility into the evaluation pipeline across different technologies while maintaining performance and cost tracking.
+This enables complete visibility into the evaluation pipeline across different technologies.
 
 ## Evaluators
 
@@ -96,31 +120,20 @@ The system includes several evaluators to comprehensively assess Torah Q&A respo
 - **hebrew_handling**: Evaluates correct interpretation of Hebrew/Aramaic text and Jewish concepts
 - **depth_analysis**: Assesses the depth and sophistication of Torah analysis
 
-## Adding New Target Functions
+## Adding New Server Templates
 
-To add a new target function:
+To add a new server implementation:
 
-1. Create a new Python file in the `targets/` directory (e.g., `my_target.py`)
-2. Implement a function that takes `inputs: dict` and returns `outputs: dict`
-3. Import it in `targets/__init__.py`
-4. Add it to the `TARGET_FUNCTIONS` registry
+1. Create a new directory in `servers/` (e.g., `servers/my-server/`)
+2. Implement the required API endpoints (`/chat`, `/health`, `/`)
+3. Follow the same request/response format as existing servers
+4. Add distributed tracing support using LangSmith headers
+5. Include setup instructions in a README.md
 
-Example in `targets/my_target.py`:
-```python
-def my_new_target(inputs: dict) -> dict:
-    # Your implementation here
-    return {"answer": "Some response"}
-```
-
-Then in `targets/__init__.py`:
-```python
-from .my_target import my_new_target
-
-TARGET_FUNCTIONS = {
-    # ... existing targets
-    "my_target": my_new_target,
-}
-```
+The server must implement:
+- `POST /chat` - Main Torah Q&A endpoint
+- `GET /health` - Health check
+- `GET /` - Server information
 
 ## Adding New Evaluators
 
@@ -144,37 +157,29 @@ EVALUATOR_FUNCTIONS["my_metric"] = my_custom_evaluator
 
 The evaluation uses `Q1-dataset.json` which contains Hebrew Torah scholarship questions and reference answers.
 
-## Testing Targets
+## Testing
 
-You can test individual target functions before running full evaluations:
+You can test the target function before running full evaluations:
 
 ```python
-# Test simple template target
-from targets import get_target_function
-simple_target = get_target_function('simple_template')
-result = simple_target({'question': 'What does Divrei Yoel teach about prayer?'})
-print(result['answer'])
-
-# Test anthropic sonnet target (requires ANTHROPIC_API_KEY)
-anthropic_target = get_target_function('anthropic_sonnet') 
-result = anthropic_target({'question': 'What is the meaning of Bereishit?'})
-print(result['answer'])
-
-# Test anthropic JS API target (requires server running on localhost:8334)
-js_target = get_target_function('anthropic_js_api')
-result = js_target({'question': 'What is the Jewish view on charity?'})
+# Test the API target (requires server running on localhost:8334)
+from targets import torah_qa_target
+result = torah_qa_target({'question': 'What is the Jewish view on charity?'})
 print(result['answer'])
 print(result.get('usage_metadata', 'No usage data'))
 ```
 
-### Testing the JavaScript Server
+### Testing Servers Directly
+
+Start any server and test the API directly:
 
 ```bash
-# Start the server
-cd targets/anthropic-js
-npm start
+# Start a server (choose one)
+cd servers/anthropic-js && PORT=8334 npm start
+# OR
+cd servers/anthropic-python && PORT=8334 python server.py
 
-# In another terminal, test the API directly
+# In another terminal, test the API
 curl -X POST http://localhost:8334/chat \
   -H "Content-Type: application/json" \
   -d '{"question": "What does the Torah say about kindness?"}'
@@ -185,4 +190,4 @@ curl http://localhost:8334/health
 
 ## Results
 
-After running an evaluation, you'll get a link to view results in the LangSmith UI where you can compare different target functions' performance.
+After running an evaluation, you'll get a link to view results in the LangSmith UI where you can analyze the Torah Q&A system's performance across different evaluators.
