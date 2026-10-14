@@ -10,17 +10,14 @@ name: conventional-pr
 jobs:
   lint-pr:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
     steps:
       - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
-      - name: Generate a token
-        id: generate-token
-        uses: actions/create-github-app-token@29824e69f54612133e76f7eaac726eef6c875baf # v2
-        with:
-          app-id: ${{ secrets.SOFERAI_BOT_CLIENT_ID }}
-          private-key: ${{ secrets.SOFERAI_BOT_PRIVATE_SIGNING_KEY }}
       - uses: CondeNast/conventional-pull-request-action@3ce30fdb4d2beef8b941f23a1114dd8188eba082 # v0.2.0
         env:
-          GITHUB_TOKEN: ${{ steps.generate-token.outputs.token }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           # to override config-conventional rules, specify a relative path to your rules module, actions/checkout is required for this setting!
           # commitlintRulesPath: './commitlint.rules.js' # default: undefined
